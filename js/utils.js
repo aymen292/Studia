@@ -1,5 +1,15 @@
 export const DAY_MS = 86400000;
 
+// Icônes SVG locales (Lucide, ISC) colorées via CSS mask : elles prennent la couleur du texte.
+export function icon(name, cls = '') {
+  const url = `icons/ui/${name}.svg`;
+  return `<span class="ic ${cls}" style="-webkit-mask-image:url(${url});mask-image:url(${url})" aria-hidden="true"></span>`;
+}
+
+export function illustration(name, alt = '', cls = '') {
+  return `<img class="illu ${cls}" src="images/${name}.svg" alt="${alt}" loading="lazy" />`;
+}
+
 export function uid(prefix = 'id') {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -100,7 +110,7 @@ export function escapeHtml(value) {
 }
 
 export const UE_COLORS = [
-  '#4f46e5', '#0ea5e9', '#14b8a6', '#22c55e',
-  '#f59e0b', '#ef4444', '#ec4899', '#8b5cf6',
-  '#64748b', '#84cc16'
+  '#e0608f', '#f29bb8', '#c77dff', '#9b8cf5',
+  '#6ec3f0', '#5cc9b5', '#8fd18a', '#f2c14e',
+  '#f59e6c', '#b48fa3'
 ];

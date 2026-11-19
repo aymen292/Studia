@@ -4,7 +4,9 @@ Studia est une petite application web (PWA) de planification de révisions, en f
 
 Tu crées des **UE** (modules) avec des **chapitres**, puis tu organises tes séances dans un **agenda hebdomadaire** :
 - en mode **Basique**, tu places les créneaux manuellement ;
-- en mode **Avancé**, tu peux en plus générer automatiquement un planning de révisions espacées.
+- en mode **Avancé**, tu peux en plus générer automatiquement un planning de tes chapitres restants.
+
+Dans les deux modes, chaque chapitre terminé est **revu plusieurs fois** (3, 5 ou 7 au choix) grâce à des révisions espacées programmées automatiquement (par défaut 3 révisions à J+3, J+7 et J+16).
 
 ---
 
@@ -15,7 +17,7 @@ Il n'y a **rien à installer ni à compiler** : ce sont des fichiers HTML/CSS/JS
 ### Avec Python (le plus simple)
 
 ```bash
-cd /home/aymen/studia-pwa
+cd "$HOME/Desktop/BELLATRECHE Aymen/Projets/Studia"
 python3 -m http.server 8000
 ```
 
@@ -74,23 +76,49 @@ Les créneaux manuels sont vérifiés : l'heure de fin doit être après l'heure
 
 ### 4. Mode Avancé : génération automatique
 
-En mode Avancé, une carte « Générer mon planning » apparaît dans l'agenda.
+En mode Avancé, un bouton « Générer » apparaît dans la barre de l'agenda.
 
 Le générateur :
 
 1. récupère tous les chapitres non terminés ;
 2. supprime les anciennes séances **automatiques** (les séances manuelles sont conservées) ;
 3. place les séances à partir d'aujourd'hui, dans la plage horaire définie dans les réglages ;
-4. respecte le nombre maximum d'heures par jour, la pause entre séances et l'option « ignorer le dimanche » ;
-5. ajoute une révision espacée tous les trois chapitres créés.
+4. alterne les UE (chapitre 1 de A, chapitre 1 de B, chapitre 2 de A…) en gardant l'ordre des chapitres ;
+5. remplit chaque jour jusqu'à la charge max (rythme soutenu), mais répartit équitablement entre les jours nécessaires (ex. 5 chapitres avec 4 séances/jour max → 3 + 2) ;
+6. étale les séances d'une même journée (matin, après-midi, soir) au lieu de les enchaîner, en évitant la pause déjeuner (12h–13h, désactivable) ;
+7. garde de la place les jours où tomberont les révisions de chaque chapitre.
 
 Les séances générées sont marquées `auto` : tu peux donc les modifier ou les supprimer comme les autres, mais une nouvelle génération les remplacera.
 
-### 5. Réglages
+### 5. Révisions espacées (3, 5 ou 7 par chapitre)
+
+Dès qu'un chapitre est terminé (bouton « Terminé » sur un créneau, ou case cochée dans « Mes UE »), Studia programme des révisions dans tes créneaux libres. Tu choisis dans les Réglages **combien** (3, 5 ou 7) et **à quel rythme** (jours après la fin du chapitre) :
+
+| Rythme | R1 | R2 | R3 | R4 | R5 | R6 | R7 |
+|---|---|---|---|---|---|---|---|
+| Intensif | J+1 | J+4 | J+10 | J+18 | J+30 | J+45 | J+60 |
+| **Équilibré** (défaut) | **J+3** | **J+7** | **J+16** | J+30 | J+50 | J+75 | J+110 |
+| Long terme | J+4 | J+12 | J+30 | J+50 | J+80 | J+120 | J+180 |
+
+Passer de 3 à 5 révisions ajoute les révisions manquantes aux chapitres déjà terminés, dans la continuité de la dernière ; revenir à 3 retire celles en trop encore à venir.
+
+Le placement est automatique et adaptatif :
+
+- chaque révision prend le premier créneau libre du jour visé, dans ta plage horaire, sans dépasser ta charge max par jour, avec la pause, et en évitant le dimanche si l'option est active (sinon elle glisse au lendemain) ;
+- **Bien retenu** : la révision est validée (et rangée à aujourd'hui si tu l'as faite en avance) ; la suite est recalculée à partir d'aujourd'hui pour garder un vrai écart ;
+- **À revoir** : la même révision est refaite dès le lendemain (marquée « à refaire » dans la liste) et toute la suite est recalée à partir de là ;
+- les révisions oubliées (passées sans réponse) sont signalées « en retard » et le bouton **Les replacer** les reprogramme dès aujourd'hui ;
+- décocher un chapitre annule ses révisions à venir ;
+- quand toutes ses révisions sont réussies, le chapitre est **maîtrisé**.
+
+Les prochaines révisions et l'avancée par UE sont visibles dans le panneau latéral de l'agenda (sur grand écran), et chaque chapitre affiche ses pastilles de progression dans « Mes UE ».
+
+### 6. Réglages
 
 L'onglet **Réglages** permet de :
 
 - changer de mode ;
+- activer/désactiver les révisions espacées, choisir leur rythme et leur durée ;
 - régler la durée des séances, le délai de reprogrammation, les horaires de travail, la pause et le nombre d'heures max par jour ;
 - ignorer le dimanche ;
 - **exporter** toutes tes données en JSON ;
@@ -107,7 +135,7 @@ Exporte régulièrement une sauvegarde si tu utilises beaucoup l'appli : les don
 
 - HTML statique, CSS vanilla, JavaScript ES modules natifs.
 - Aucun framework, aucun bundler, aucune base de données, aucun backend.
-- Interface responsive, pensée d'abord pour mobile.
+- Interface responsive, plein écran sans défilement sur l'agenda (la journée s'adapte à la hauteur de l'écran), thème rose poudré.
 - Données et formatage des dates en français.
 
 ### Structure du projet
@@ -124,11 +152,15 @@ Exporte régulièrement une sauvegarde si tu utilises beaucoup l'appli : les don
 │   ├── store.js              État, persistance localStorage, import/export
 │   ├── calendar.js           Agenda, créneaux, modales de séance
 │   ├── scheduler.js          Génération automatique du planning
+│   ├── reviews.js            Révisions espacées et replanification
+│   ├── slots.js              Recherche de créneaux libres
 │   ├── modules.js            Gestion des UE et chapitres
 │   ├── settings.js           Réglages, onboarding, aide, sauvegardes
 │   ├── ui.js                 Modales et notifications toast
 │   └── utils.js              Dates, IDs et helpers
-└── icons/                    Icônes de l'application
+├── icons/                    Icônes de l'application
+│   └── ui/                   Icônes d'interface (SVG)
+└── images/                   Illustrations (SVG)
 ```
 
 ### Données
@@ -162,7 +194,7 @@ La liste `APP_SHELL` de `sw.js` doit être tenue à jour lors de l'ajout de nouv
 
 - Il n'y a **pas de notifications push, ni d'alarme** : les retours sont uniquement des messages dans l'application.
 - La génération automatique part toujours d'aujourd'hui, pas de la semaine affichée.
-- Le délai de reprogrammation des réglages s'applique au bouton « Pas fini » ; les révisions automatiques utilisent leur propre espacement.
+- Le délai de reprogrammation des réglages s'applique au bouton « Pas fini » ; les révisions espacées suivent le rythme choisi dans « Révisions espacées ».
 - Marquer une séance « Terminé » coche le chapitre, mais supprimer la séance ne décoche pas le chapitre.
 - L'import JSON vérifie surtout que `ues` et `sessions` sont des tableaux : importe de préférence un fichier exporté par Studia.
 
@@ -177,3 +209,11 @@ La liste `APP_SHELL` de `sw.js` doit être tenue à jour lors de l'ajout de nouv
 | Le port 8000 est occupé | Change de port : `python3 -m http.server 8080` |
 | Je veux repartir de zéro | Réglages → Réinitialiser, ou supprime `studia.state.v1` du localStorage |
 | L'installation PWA ne propose pas | Vérifie que le site est en `localhost` ou en HTTPS |
+
+---
+
+## Crédits des images
+
+- Icônes d'interface : [Lucide](https://lucide.dev) (licence ISC), dans `icons/ui/`.
+- Nœud du logo : [IconPark](https://github.com/bytedance/IconPark) (licence Apache 2.0), `icons/ui/bow.svg`.
+- Illustrations : [unDraw](https://undraw.co) (licence libre unDraw, sans attribution obligatoire), recolorées en rose, dans `images/`.

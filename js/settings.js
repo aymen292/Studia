@@ -1,10 +1,12 @@
 import * as store from './store.js';
 import { showModal, closeModal, toast, confirmDialog } from './ui.js';
 import * as u from './utils.js';
+import { RHYTHMS, REVIEW_COUNTS, reviewCount, rhythmLabel, applyReviewDuration, syncReviewCount } from './reviews.js';
 
 export function renderSettings(main, rerender) {
   const state = store.getState();
   const s = state.settings;
+  const count = reviewCount(s);
 
   main.innerHTML = `
     <section class="view view-settings">
@@ -12,62 +14,92 @@ export function renderSettings(main, rerender) {
         <div>
           <p class="eyebrow">Personnalisation</p>
           <h1>Réglages</h1>
-          <p class="subtitle">Votre application, à votre rythme</p>
+          <p class="subtitle">Ton application, à ton rythme</p>
         </div>
       </div>
 
       <div class="section-title">Mode de fonctionnement</div>
       <div class="mode-grid">
         <button class="mode-card ${state.mode === 'basic' ? 'is-active' : ''}" type="button" data-mode="basic">
-          <span class="mode-icon">✋</span>
+          <span class="mode-icon">${u.icon('hand')}</span>
           <strong>Mode Basique</strong>
-          <span>Vous choisissez chaque jour, chaque horaire et chaque chapitre. Liberté totale.</span>
-          ${state.mode === 'basic' ? '<span class="mode-check">✓ Mode actuel</span>' : ''}
+          <span>Tu places toi-même chaque séance dans l’agenda : le jour, l’heure et le chapitre.</span>
+          ${state.mode === 'basic' ? `<span class="mode-check">${u.icon('check', 'ic-sm')} Mode actuel</span>` : ''}
         </button>
         <button class="mode-card ${state.mode === 'advanced' ? 'is-active' : ''}" type="button" data-mode="advanced">
-          <span class="mode-icon">✨</span>
+          <span class="mode-icon">${u.icon('wand-sparkles')}</span>
           <strong>Mode Avancé</strong>
-          <span>L’application génère automatiquement un planning sérieux et régulier à partir de vos UE.</span>
-          ${state.mode === 'advanced' ? '<span class="mode-check">✓ Mode actuel</span>' : ''}
+          <span>En plus, un bouton « Générer » remplit ton agenda tout seul avec les chapitres qu’il te reste.</span>
+          ${state.mode === 'advanced' ? `<span class="mode-check">${u.icon('check', 'ic-sm')} Mode actuel</span>` : ''}
         </button>
       </div>
 
-      <div class="section-title">Révisions</div>
+      <div class="section-title">Révisions espacées</div>
       <div class="card settings-card">
         <label class="setting-row">
-          <span><strong>Rapport après un cours non terminé</strong><small>Réajout automatique après ce délai</small></span>
+          <span><strong>Révisions automatiques</strong><small>Quand tu termines un chapitre, Studia te le fait revoir plusieurs fois les jours suivants pour que tu ne l’oublies pas.</small></span>
+          <input type="checkbox" id="setAutoReviews" ${s.autoReviews !== false ? 'checked' : ''} />
+        </label>
+        <label class="setting-row">
+          <span><strong>Nombre de révisions par chapitre</strong><small>Combien de fois tu revois un chapitre déjà appris. Plus tu le revois, mieux tu le retiens.</small></span>
+          <select id="setReviewCount">
+            ${REVIEW_COUNTS.map((n) => `<option value="${n}" ${count === n ? 'selected' : ''}>${n} révisions</option>`).join('')}
+          </select>
+        </label>
+        <label class="setting-row">
+          <span><strong>Rythme des révisions</strong><small>Combien de jours après la fin du chapitre tombe chaque révision. « J+3 » veut dire 3 jours après.</small></span>
+          <select id="setRhythm">
+            ${Object.keys(RHYTHMS).map((key) => `<option value="${key}" ${(s.reviewRhythm || 'balanced') === key ? 'selected' : ''}>${rhythmLabel(key, count)}</option>`).join('')}
+          </select>
+        </label>
+        <label class="setting-row">
+          <span><strong>Durée d’une séance de révision</strong><small>Le temps prévu pour revoir un chapitre que tu as déjà appris. Les révisions déjà prévues sont ajustées aussi.</small></span>
+          <select id="setReviewMin">
+            ${[15, 20, 30, 45, 60, 75, 90, 120].map((n) => `<option value="${n}" ${Number(s.reviewMinutes || 45) === n ? 'selected' : ''}>${n} min</option>`).join('')}
+          </select>
+        </label>
+      </div>
+
+      <div class="section-title">Organisation</div>
+      <div class="card settings-card">
+        <label class="setting-row">
+          <span><strong>Report d’un cours pas fini</strong><small>Si tu n’as pas fini un cours, Studia te propose de le refaire ce nombre de jours plus tard.</small></span>
           <select id="setDelay">
             ${[1, 2, 3, 4, 7].map((n) => `<option value="${n}" ${Number(s.rescheduleDelay) === n ? 'selected' : ''}>${n} jour${n > 1 ? 's' : ''}</option>`).join('')}
           </select>
         </label>
         <label class="setting-row">
-          <span><strong>Durée d’une session auto</strong><small>Pour le mode Avancé</small></span>
+          <span><strong>Durée d’une séance d’apprentissage</strong><small>Le temps prévu pour apprendre un nouveau chapitre quand tu cliques sur « Générer ».</small></span>
           <select id="setSession">
             ${[60, 90, 120, 180, 240].map((n) => `<option value="${n}" ${Number(s.sessionMinutes) === n ? 'selected' : ''}>${n} min</option>`).join('')}
           </select>
         </label>
         <label class="setting-row">
-          <span><strong>Travail maximum par jour</strong><small>Pour le mode Avancé</small></span>
+          <span><strong>Travail maximum par jour</strong><small>Studia ne te prévoit jamais plus que ça dans une journée, cours et révisions compris.</small></span>
           <select id="setMaxHours">
             ${[2, 4, 6, 8].map((n) => `<option value="${n}" ${Number(s.maxHoursPerDay) === n ? 'selected' : ''}>${n} h</option>`).join('')}
           </select>
         </label>
         <label class="setting-row">
-          <span><strong>Journée de travail</strong><small>Plage utilisée par le planning auto</small></span>
+          <span><strong>Journée de travail</strong><small>Studia place tes séances automatiques seulement entre ces deux heures.</small></span>
           <span class="time-pair">
             <input type="time" id="setWorkStart" value="${u.escapeHtml(s.workStart)}" />
-            <span>→</span>
+            ${u.icon('arrow-right', 'ic-sm')}
             <input type="time" id="setWorkEnd" value="${u.escapeHtml(s.workEnd)}" />
           </span>
         </label>
         <label class="setting-row">
-          <span><strong>Pause entre deux sessions</strong><small>Respectée par le planning auto</small></span>
+          <span><strong>Pause déjeuner</strong><small>Studia ne met aucune séance automatique entre 12h et 13h, pour que tu puisses manger.</small></span>
+          <input type="checkbox" id="setLunch" ${s.lunchBreak !== false ? 'checked' : ''} />
+        </label>
+        <label class="setting-row">
+          <span><strong>Pause entre deux séances</strong><small>Le temps de repos laissé entre deux séances automatiques.</small></span>
           <select id="setBreak">
             ${[0, 10, 15, 30].map((n) => `<option value="${n}" ${Number(s.breakMinutes) === n ? 'selected' : ''}>${n} min</option>`).join('')}
           </select>
         </label>
         <label class="setting-row">
-          <span><strong>Éviter le dimanche</strong><small>Jour de repos dans le planning auto</small></span>
+          <span><strong>Dimanche libre</strong><small>Aucune séance automatique le dimanche : c’est ton jour de repos.</small></span>
           <input type="checkbox" id="setSkipSunday" ${s.skipSunday ? 'checked' : ''} />
         </label>
       </div>
@@ -75,18 +107,18 @@ export function renderSettings(main, rerender) {
       <div class="section-title">Mes données</div>
       <div class="card settings-card">
         <button class="setting-row setting-button" type="button" id="exportBtn">
-          <span><strong>Exporter mes données</strong><small>Télécharger une sauvegarde JSON</small></span><span>⬇</span>
+          <span><strong>Exporter mes données</strong><small>Télécharge un fichier avec toutes tes UE et séances, pour les garder en sécurité.</small></span>${u.icon('download')}
         </button>
         <button class="setting-row setting-button" type="button" id="importBtn">
-          <span><strong>Importer une sauvegarde</strong><small>Restaurer depuis un fichier JSON</small></span><span>⬆</span>
+          <span><strong>Importer une sauvegarde</strong><small>Remplace tes données actuelles par celles d’un fichier exporté avant.</small></span>${u.icon('upload')}
         </button>
         <button class="setting-row setting-button" type="button" id="resetBtn">
-          <span><strong>Réinitialiser l’application</strong><small>Effacer UE, chapitres et créneaux</small></span><span>↺</span>
+          <span><strong>Tout effacer</strong><small>Supprime tout pour repartir de zéro. Pense à exporter avant !</small></span>${u.icon('rotate-ccw')}
         </button>
         <input type="file" id="importFile" accept="application/json,.json" hidden />
       </div>
 
-      <p class="settings-foot">Studia fonctionne hors-ligne : vos données restent sur cet appareil.</p>
+      <p class="settings-foot">Studia fonctionne hors-ligne : tes données restent sur cet appareil.</p>
     </section>
   `;
 
@@ -112,6 +144,32 @@ export function renderSettings(main, rerender) {
   bindSelect('#setBreak', 'breakMinutes', Number);
   bindSelect('#setWorkStart', 'workStart');
   bindSelect('#setWorkEnd', 'workEnd');
+  main.querySelector('#setRhythm').addEventListener('change', (event) => {
+    store.setSetting('reviewRhythm', event.target.value);
+    toast('Rythme enregistré : il s’appliquera aux prochains chapitres terminés.', 'success');
+  });
+  main.querySelector('#setReviewCount').addEventListener('change', (event) => {
+    store.setSetting('reviewCount', Number(event.target.value));
+    const { added, removed } = syncReviewCount();
+    const parts = [];
+    if (added) parts.push(`${added} révision${added > 1 ? 's' : ''} ajoutée${added > 1 ? 's' : ''}`);
+    if (removed) parts.push(`${removed} retirée${removed > 1 ? 's' : ''}`);
+    toast(`${event.target.value} révisions par chapitre${parts.length ? ` : ${parts.join(', ')}` : ''}.`, 'success');
+    rerender();
+  });
+  main.querySelector('#setReviewMin').addEventListener('change', (event) => {
+    store.setSetting('reviewMinutes', Number(event.target.value));
+    const moved = applyReviewDuration();
+    toast(moved ? `Durée enregistrée : ${moved} révision${moved > 1 ? 's' : ''} à venir ajustée${moved > 1 ? 's' : ''}.` : 'Durée de révision enregistrée.', 'success');
+  });
+  main.querySelector('#setLunch').addEventListener('change', (event) => {
+    store.setSetting('lunchBreak', event.target.checked);
+    toast('Réglage enregistré.', 'success');
+  });
+  main.querySelector('#setAutoReviews').addEventListener('change', (event) => {
+    store.setSetting('autoReviews', event.target.checked);
+    toast('Réglage enregistré.', 'success');
+  });
 
   main.querySelector('#setSkipSunday').addEventListener('change', (event) => {
     store.setSetting('skipSunday', event.target.checked);
@@ -175,24 +233,24 @@ export function showOnboarding(rerender) {
   root.hidden = false;
   root.innerHTML = `
     <div class="onboarding">
-      <div class="onboarding-logo">S</div>
+      ${u.illustration('book-lover', '', 'onboarding-illu')}
       <h1>Bienvenue sur Studia</h1>
       <p class="onboarding-intro">Votre agenda de révisions, simple et sous contrôle. Choisissez comment vous voulez travailler :</p>
       <button class="onboarding-option" type="button" data-mode="basic">
-        <span class="onboarding-emoji">✋</span>
+        <span class="onboarding-emoji">${u.icon('hand')}</span>
         <span class="onboarding-copy">
           <strong>Mode Basique</strong>
           <small>Je organise moi-même chaque séance : jour, horaire, UE et chapitre. Je peux même réviser 3h ou 4h d’un coup.</small>
         </span>
-        <span class="onboarding-arrow">›</span>
+        <span class="onboarding-arrow">${u.icon('chevron-right')}</span>
       </button>
       <button class="onboarding-option" type="button" data-mode="advanced">
-        <span class="onboarding-emoji">✨</span>
+        <span class="onboarding-emoji">${u.icon('wand-sparkles')}</span>
         <span class="onboarding-copy">
           <strong>Mode Avancé</strong>
           <small>L’application construit automatiquement un planning régulier à partir de mes UE et de mes chapitres.</small>
         </span>
-        <span class="onboarding-arrow">›</span>
+        <span class="onboarding-arrow">${u.icon('chevron-right')}</span>
       </button>
       <p class="onboarding-note">Vous pourrez changer de mode à tout moment dans les réglages.</p>
     </div>
@@ -212,11 +270,13 @@ export function showHelp() {
   showModal({
     title: 'Comment utiliser Studia',
     bodyHtml: `
+      ${u.illustration('learning', '', 'help-illu')}
       <div class="help-list">
         <p><strong>1. Mes UE</strong> — Créez vos modules, puis leurs chapitres. Cochez un chapitre quand il est terminé.</p>
         <p><strong>2. Agenda</strong> — Cliquez sur un jour de la semaine, puis sur une heure pour réserver. Choisissez l’UE et le chapitre dans les listes déroulantes. La durée est libre (3h, 4h…).</p>
-        <p><strong>3. Réactions</strong> — Sur un créneau : ✅ si le cours est terminé, ❌ si vous n’avez pas fini. Dans ce cas, Studia vous propose de replanifier le chapitre 2 jours plus tard.</p>
-        <p><strong>4. Mode Avancé</strong> — Depuis l’onglet Agenda ou les Réglages, lancez « Générer mon planning » : Studia répartit les chapitres restants en sessions régulières avec des révisions espacées.</p>
+        <p><strong>3. Réactions</strong> — Sur un créneau : « Terminé » si le cours est fini, « Pas fini » sinon. Dans ce cas, Studia te propose de replanifier le chapitre quelques jours plus tard.</p>
+        <p><strong>4. Révisions espacées</strong> — Dès qu’un chapitre est terminé, Studia programme 3, 5 ou 7 révisions (au choix dans les Réglages ; par défaut J+3, J+7 et J+16) dans tes créneaux libres. « Bien retenu » : on passe à la suivante. « À revoir » : on la refait dès le lendemain et toute la suite est décalée. Quand toutes les révisions sont réussies, le chapitre est maîtrisé.</p>
+        <p><strong>5. Mode Avancé</strong> — Le bouton « Générer » de l’agenda répartit les chapitres restants sur les jours à venir, étalés dans la journée.</p>
       </div>
     `,
     footerHtml: '<button class="btn btn-primary" id="helpClose" type="button">Compris</button>',

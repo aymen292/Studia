@@ -1,18 +1,27 @@
 import * as store from './store.js';
 import { showModal, closeModal, toast, confirmDialog } from './ui.js';
 import * as u from './utils.js';
+import * as reviews from './reviews.js';
 
 export function renderModules(main, rerender) {
   const state = store.getState();
 
   const ueCards = state.ues.map((ue) => {
-    const chapters = ue.chapters.map((chapter) => `
-      <li class="chapter-item ${chapter.done ? 'is-done' : ''}" data-chapter="${chapter.id}">
-        <button class="chapter-check" type="button" data-toggle="${chapter.id}" aria-label="${chapter.done ? 'Marquer comme à faire' : 'Marquer comme terminé'}">${chapter.done ? '✓' : ''}</button>
+    const chapters = ue.chapters.map((chapter) => {
+      const progress = chapter.done ? reviews.reviewProgress(state, ue.id, chapter.id) : null;
+      const track = progress ? `
+        <span class="review-track review-track-mini" title="${progress.mastered ? 'Maîtrisé' : `Révisions : ${progress.done}/${progress.total}${progress.next ? ` · prochaine le ${u.formatDateShort(progress.next.date)}` : ''}`}">
+          ${Array.from({ length: progress.total }, (_, i) => `<span class="review-dot ${i < progress.done ? 'is-done' : ''}"></span>`).join('')}
+          ${progress.mastered ? `<span class="mastered-badge">${u.icon('award', 'ic-sm')} maîtrisé</span>` : progress.next ? `<small>${u.escapeHtml(u.formatDateShort(progress.next.date).slice(0, 5))}</small>` : ''}
+        </span>` : '';
+      return `
+      <li class="chapter-item ${chapter.done ? 'is-done' : ''} ${progress && progress.mastered ? 'is-mastered' : ''}" data-chapter="${chapter.id}">
+        <button class="chapter-check" type="button" data-toggle="${chapter.id}" aria-label="${chapter.done ? 'Marquer comme à faire' : 'Marquer comme terminé'}">${chapter.done ? u.icon('check') : ''}</button>
         <span class="chapter-name">${u.escapeHtml(chapter.name)}</span>
-        <button class="icon-btn chapter-delete" type="button" data-delete-chapter="${chapter.id}" aria-label="Supprimer le chapitre">×</button>
-      </li>
-    `).join('');
+        ${track}
+        <button class="icon-btn chapter-delete" type="button" data-delete-chapter="${chapter.id}" aria-label="Supprimer le chapitre">${u.icon('x')}</button>
+      </li>`;
+    }).join('');
 
     const doneCount = ue.chapters.filter((c) => c.done).length;
 
@@ -24,8 +33,8 @@ export function renderModules(main, rerender) {
             <h3>${u.escapeHtml(ue.name)}</h3>
             <p>${ue.chapters.length} chapitre${ue.chapters.length > 1 ? 's' : ''} · ${doneCount} terminé${doneCount > 1 ? 's' : ''}</p>
           </div>
-          <button class="icon-btn" type="button" data-edit-ue="${ue.id}" aria-label="Modifier l'UE">✎</button>
-          <button class="icon-btn" type="button" data-delete-ue="${ue.id}" aria-label="Supprimer l'UE">🗑</button>
+          <button class="icon-btn" type="button" data-edit-ue="${ue.id}" aria-label="Modifier l'UE">${u.icon('pencil')}</button>
+          <button class="icon-btn" type="button" data-delete-ue="${ue.id}" aria-label="Supprimer l'UE">${u.icon('trash-2')}</button>
         </div>
         <ul class="chapter-list">${chapters || '<li class="chapter-empty">Aucun chapitre pour le moment.</li>'}</ul>
         <form class="chapter-add" data-add-chapter="${ue.id}">
@@ -40,16 +49,16 @@ export function renderModules(main, rerender) {
     <section class="view view-modules">
       <div class="view-head">
         <div>
-          <p class="eyebrow">Votre programme</p>
+          <p class="eyebrow">Ton programme</p>
           <h1>Mes UE</h1>
           <p class="subtitle">Modules et chapitres à réviser</p>
         </div>
-        <button class="btn btn-primary" id="addUeBtn" type="button">+ Nouvelle UE</button>
+        <button class="btn btn-primary" id="addUeBtn" type="button">${u.icon('plus')} Nouvelle UE</button>
       </div>
 
       ${state.ues.length ? `<div class="ue-list">${ueCards}</div>` : `
         <div class="empty-state card">
-          <div class="empty-icon">▤</div>
+          ${u.illustration('books', '', 'empty-illu')}
           <h2>Aucune UE pour l’instant</h2>
           <p>Créez vos modules, puis ajoutez les chapitres à réviser. Vous pourrez ensuite les placer dans l’agenda.</p>
           <button class="btn btn-primary" id="emptyAddUe" type="button">Créer ma première UE</button>
@@ -89,7 +98,17 @@ export function renderModules(main, rerender) {
       const chapterId = btn.dataset.toggle;
       const stateNow = store.getState();
       const chapter = stateNow.ues.find((u) => u.id === ueId)?.chapters.find((c) => c.id === chapterId);
-      if (chapter) store.setChapterDone(ueId, chapterId, !chapter.done);
+      if (chapter) {
+        const nowDone = !chapter.done;
+        store.setChapterDone(ueId, chapterId, nowDone);
+        if (nowDone) {
+          const created = reviews.scheduleReviews(ueId, chapterId, u.todayISO());
+          if (created.length) toast(`Chapitre terminé ! Révisions programmées : ${reviews.describeCreated(created)}`, 'success');
+        } else {
+          const removed = reviews.cancelPlannedReviews(ueId, chapterId);
+          if (removed) toast(`${removed} révision${removed > 1 ? 's' : ''} à venir annulée${removed > 1 ? 's' : ''}.`);
+        }
+      }
       rerender();
     });
   });

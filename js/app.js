@@ -35,9 +35,14 @@ document.querySelectorAll('.nav-item').forEach((item) => {
     currentView = item.dataset.view;
     if (currentView === 'agenda') goToToday();
     render();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    main.scrollTop = 0;
   });
 });
+
+setInterval(() => {
+  const state = store.getState();
+  if (currentView === 'agenda' && state.onboarded && state.mode && document.getElementById('modalRoot').hidden) render();
+}, 60000);
 
 document.getElementById('helpBtn').addEventListener('click', showHelp);
 

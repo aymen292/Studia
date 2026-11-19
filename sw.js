@@ -1,4 +1,4 @@
-const CACHE_NAME = 'studia-v3';
+const CACHE_NAME = 'studia-v6';
 const APP_SHELL = [
   './',
   './index.html',
@@ -9,6 +9,11 @@ const APP_SHELL = [
   './js/ui.js',
   './js/calendar.js',
   './js/scheduler.js',
+  './js/slots.js',
+  './js/reviews.js',
+  './js/modules.js',
+  './js/settings.js',
+  './js/utils.js',
   './icons/icon.svg',
   './icons/icon-192.png',
   './icons/icon-512.png'
@@ -16,7 +21,7 @@ const APP_SHELL = [
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)).then(() => self.skipWaiting())
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL.map((url) => new Request(url, { cache: 'reload' })))).then(() => self.skipWaiting())
   );
 });
 
@@ -38,16 +43,16 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Réseau d'abord (toujours la dernière version), cache en secours hors-ligne.
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(event.request).then((response) => {
+    fetch(event.request, { cache: 'no-cache' })
+      .then((response) => {
         if (response && response.status === 200 && response.type === 'basic') {
           const copy = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
         }
         return response;
-      });
-    })
+      })
+      .catch(() => caches.match(event.request))
   );
 });

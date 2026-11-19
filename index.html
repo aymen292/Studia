@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#4f46e5" />
+  <meta name="theme-color" content="#fde8f0" />
   <meta name="description" content="Studia — ton agenda de révisions intelligent, simple et hors-ligne." />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
@@ -11,38 +11,40 @@
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" type="image/svg+xml" href="icons/icon.svg" />
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,600;1,700&family=Quicksand:wght@500;600;700&display=swap" />
   <link rel="stylesheet" href="css/style.css" />
   <title>Studia — Agenda de révisions</title>
 </head>
 <body>
   <div id="app" class="app">
-    <div class="app-top">
+    <header class="app-bar">
+      <div class="brand">
+        <span class="brand-mark"><span class="ic ic-bow" style="-webkit-mask-image:url(icons/ui/bow.svg);mask-image:url(icons/ui/bow.svg)" aria-hidden="true"></span></span>
+        <div class="brand-text">
+          <strong>Studia</strong>
+          <span id="modeBadge" class="mode-badge">Basique</span>
+        </div>
+      </div>
+
       <nav class="top-nav" aria-label="Navigation principale">
         <button class="nav-item is-active" data-view="agenda" type="button">
-          <span class="nav-icon" aria-hidden="true">▦</span>
+          <span class="ic " style="-webkit-mask-image:url(icons/ui/calendar-heart.svg);mask-image:url(icons/ui/calendar-heart.svg)" aria-hidden="true"></span>
           <span>Agenda</span>
         </button>
         <button class="nav-item" data-view="modules" type="button">
-          <span class="nav-icon" aria-hidden="true">▤</span>
+          <span class="ic " style="-webkit-mask-image:url(icons/ui/book-heart.svg);mask-image:url(icons/ui/book-heart.svg)" aria-hidden="true"></span>
           <span>Mes UE</span>
         </button>
         <button class="nav-item" data-view="settings" type="button">
-          <span class="nav-icon" aria-hidden="true">⚙</span>
+          <span class="ic " style="-webkit-mask-image:url(icons/ui/settings.svg);mask-image:url(icons/ui/settings.svg)" aria-hidden="true"></span>
           <span>Réglages</span>
         </button>
       </nav>
 
-      <header class="app-header">
-        <div class="brand">
-          <span class="brand-mark" aria-hidden="true">S</span>
-          <div class="brand-text">
-            <strong>Studia</strong>
-            <span id="modeBadge" class="mode-badge">Basique</span>
-          </div>
-        </div>
-        <button id="helpBtn" class="icon-btn" type="button" aria-label="Aide" title="Aide">?</button>
-      </header>
-    </div>
+      <button id="helpBtn" class="icon-btn help-btn" type="button" aria-label="Aide" title="Aide"><span class="ic " style="-webkit-mask-image:url(icons/ui/circle-help.svg);mask-image:url(icons/ui/circle-help.svg)" aria-hidden="true"></span></button>
+    </header>
 
     <main id="main" class="main" tabindex="-1"></main>
   </div>

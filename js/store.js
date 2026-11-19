@@ -14,7 +14,12 @@ function defaultState() {
       maxHoursPerDay: 6,
       sessionMinutes: 90,
       breakMinutes: 15,
-      skipSunday: true
+      skipSunday: true,
+      autoReviews: true,
+      reviewRhythm: 'balanced',
+      reviewMinutes: 45,
+      reviewCount: 3,
+      lunchBreak: true
     },
     ues: [],
     sessions: []
@@ -140,8 +145,8 @@ export function setChapterDone(ueId, chapterId, done) {
   });
 }
 
-export function addSession(session) {
-  const record = {
+function makeSession(session) {
+  return {
     id: uid('s'),
     date: session.date || todayISO(),
     start: session.start,
@@ -151,11 +156,32 @@ export function addSession(session) {
     status: session.status || 'planned',
     kind: session.kind || 'study',
     auto: !!session.auto,
+    reviewStep: session.reviewStep || null,
+    redo: !!session.redo,
     rescheduledFrom: session.rescheduledFrom || null,
     createdAt: new Date().toISOString()
   };
+}
+
+export function addSession(session) {
+  const record = makeSession(session);
   update((s) => s.sessions.push(record));
   return record;
+}
+
+export function addSessions(list) {
+  if (!list.length) return [];
+  const records = list.map(makeSession);
+  update((s) => s.sessions.push(...records));
+  return records;
+}
+
+export function deleteSessions(ids) {
+  if (!ids.length) return;
+  const set = new Set(ids);
+  update((s) => {
+    s.sessions = s.sessions.filter((item) => !set.has(item.id));
+  });
 }
 
 export function updateSession(id, patch) {

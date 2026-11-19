@@ -20,7 +20,7 @@ export function showModal({ title = '', bodyHtml = '', footerHtml = '', onMount,
     <div class="modal ${wide ? 'modal-wide' : ''}" role="dialog" aria-modal="true" aria-label="${escapeAttr(title)}">
       <div class="modal-head">
         <h2>${title}</h2>
-        ${dismissible ? '<button class="icon-btn modal-close" type="button" data-close aria-label="Fermer">×</button>' : ''}
+        ${dismissible ? '<button class="icon-btn modal-close" type="button" data-close aria-label="Fermer"><span class="ic" style="-webkit-mask-image:url(icons/ui/x.svg);mask-image:url(icons/ui/x.svg)" aria-hidden="true"></span></button>' : ''}
       </div>
       <div class="modal-body">${bodyHtml}</div>
       ${footerHtml ? `<div class="modal-foot">${footerHtml}</div>` : ''}
